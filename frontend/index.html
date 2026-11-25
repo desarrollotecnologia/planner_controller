@@ -1,0 +1,606 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colbeef® | Planificador Ejecutivo - Dirección Controller</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Montserrat (Logo/Títulos) & Inter (UI) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        brand: ['Montserrat', 'sans-serif'],
+                    },
+                    colors: {
+                        colbeef: {
+                            green: '#1F962B',
+                            greenHover: '#177520',
+                            greenLight: '#EAF7EC',
+                            red: '#DA2925',
+                            redHover: '#B51F1C',
+                            redLight: '#FDECEC',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- ==================== PRIVATE LOGIN SCREEN (COLBEEF ACCESS) ==================== -->
+    <div id="loginScreen" class="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
+            <!-- Franja superior corporativa Colbeef -->
+            <div class="h-1.5 w-full bg-gradient-to-r from-[#1F962B] via-[#1F962B] to-[#DA2925]"></div>
+            
+            <div class="p-7 sm:p-8 space-y-6">
+                <!-- Logo & Title -->
+                <div class="text-center space-y-2">
+                    <div class="inline-flex items-center justify-center bg-white px-3 py-1.5 rounded-xl border border-slate-100 shadow-xs">
+                        <svg viewBox="0 0 215 52" class="h-10 w-auto" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Colbeef">
+                            <text x="2" y="40" font-family="'Montserrat', 'Arial Black', sans-serif" font-weight="900" font-size="42" letter-spacing="-1.8">
+                                <tspan fill="#1F962B">Col</tspan><tspan fill="#DA2925">beef</tspan>
+                            </text>
+                            <text x="184" y="18" font-family="'Montserrat', sans-serif" font-weight="800" font-size="14" fill="#DA2925">®</text>
+                        </svg>
+                    </div>
+                    <h2 class="text-lg font-bold text-slate-900">Acceso Privado • Dirección Controller</h2>
+                    <p class="text-xs text-slate-500 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-lock text-[#1F962B]"></i>
+                        <span>Uso exclusivo para personal autorizado</span>
+                    </p>
+                </div>
+
+                <!-- Error Alert Box -->
+                <div id="loginError" class="hidden bg-[#FDECEC] border border-[#DA2925]/30 text-[#DA2925] text-xs font-medium px-3.5 py-2.5 rounded-xl flex items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation shrink-0"></i>
+                    <span id="loginErrorText">Credenciales incorrectas o usuario no autorizado.</span>
+                </div>
+
+                <!-- Success Alert Box (Password Reset) -->
+                <div id="loginSuccess" class="hidden bg-[#EAF7EC] border border-[#1F962B]/30 text-[#1F962B] text-xs font-medium px-3.5 py-2.5 rounded-xl flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check shrink-0"></i>
+                    <span id="loginSuccessText">Enlace enviado a tu correo corporativo.</span>
+                </div>
+
+                <!-- Login Form -->
+                <form id="loginForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Correo corporativo autorizado</label>
+                        <div class="relative">
+                            <i class="fa-regular fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="email" id="loginEmail" required autocomplete="email" placeholder="nombre@colbeef.com" class="w-full pl-9 pr-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1F962B]/20 focus:border-[#1F962B]">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="mb-1">
+                            <label class="block text-xs font-semibold text-slate-700">Contraseña</label>
+                        </div>
+                        <div class="relative">
+                            <i class="fa-solid fa-key absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="••••••••" class="w-full pl-9 pr-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1F962B]/20 focus:border-[#1F962B]">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btnLoginSubmit" class="w-full bg-[#1F962B] hover:bg-[#177520] active:scale-[0.99] text-white text-sm font-semibold py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        <span>Ingresar al Planificador</span>
+                    </button>
+                </form>
+
+                <p class="text-[11px] text-slate-500 text-center">Acceso interno Colbeef. La clave inicial la entrega Dirección Controller.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== HEADER ==================== -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <!-- Franja superior sutil corporativa Colbeef -->
+        <div class="h-1 w-full bg-gradient-to-r from-[#1F962B] via-[#1F962B] to-[#DA2925]"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between py-3 gap-3">
+                
+                <!-- Brand Logo Colbeef SVG & Live Status -->
+                <div class="flex items-center justify-between md:justify-start gap-4">
+                    <div class="flex items-center gap-3.5">
+                        <!-- Logo Vectorial Oficial Colbeef® -->
+                        <div class="bg-white px-2.5 py-1 rounded-xl border border-slate-100 shadow-xs shrink-0 flex items-center">
+                            <svg viewBox="0 0 215 52" class="h-9 sm:h-10 w-auto" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Colbeef">
+                                <text x="2" y="40" font-family="'Montserrat', 'Arial Black', sans-serif" font-weight="900" font-size="42" letter-spacing="-1.8">
+                                    <tspan fill="#1F962B">Col</tspan><tspan fill="#DA2925">beef</tspan>
+                                </text>
+                                <text x="184" y="18" font-family="'Montserrat', sans-serif" font-weight="800" font-size="14" fill="#DA2925">®</text>
+                            </svg>
+                        </div>
+                        <div class="border-l border-slate-200 pl-3.5">
+                            <h1 class="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                                Planificador Ejecutivo • Dirección Controller
+                            </h1>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span id="syncBadge" class="inline-flex items-center gap-1.5 text-xs font-medium text-[#1F962B] bg-[#EAF7EC] border border-[#1F962B]/25 px-2.5 py-0.5 rounded-full">
+                                    <span id="syncDot" class="w-2 h-2 rounded-full bg-[#1F962B] live-dot"></span>
+                                    <span id="syncText">Conectando...</span>
+                                </span>
+                                <span id="userIdBadge" class="hidden sm:inline-block text-[11px] text-slate-400 font-mono truncate max-w-[180px]" title="Usuario conectado"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls: Profile Selector, Demo Reset, New Task, Change Password, Logout -->
+                <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                    <!-- Active Profile Selector -->
+                    <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs sm:text-sm">
+                        <span class="text-slate-500 mr-2 hidden sm:inline"><i class="fa-regular fa-user mr-1 text-[#1F962B]"></i>Perfil activo:</span>
+                        <select id="activeProfileSelect" class="bg-transparent font-semibold text-slate-800 focus:outline-none cursor-pointer">
+                            <option value="arley">Arley Quesada (Controller)</option>
+                            <option value="laura">Laura Higuera (Control Interno)</option>
+                            <option value="diego">Diego Rojas (PMO)</option>
+                            <option value="data">DATA (Pdte. contratación)</option>
+                        </select>
+                        <span id="roleBadge" class="ml-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-[#EAF7EC] text-[#1F962B] border border-[#1F962B]/30">Admin</span>
+                    </div>
+
+                    <!-- Restore Demo Data Button -->
+                    <button id="btnRestoreDemo" title="Restaurar las 12 tareas de ejemplo Colbeef" class="text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 border border-transparent hover:border-slate-200">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        <span class="hidden lg:inline">Restaurar demo</span>
+                    </button>
+
+                    <!-- New Task Button (Colbeef Green) -->
+                    <button id="btnNewTask" class="bg-[#1F962B] hover:bg-[#177520] active:scale-[0.98] text-white text-xs sm:text-sm font-semibold px-4 py-2 rounded-xl shadow-sm transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Nueva Tarea</span>
+                    </button>
+
+                    <!-- Change Password Button -->
+                    <button id="btnChangePassword" title="Enviar enlace para cambiar mi contraseña" class="text-xs font-semibold text-slate-500 hover:text-[#1F962B] hover:bg-[#EAF7EC] px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 border border-slate-200 hover:border-[#1F962B]/30">
+                        <i class="fa-solid fa-key"></i>
+                        <span class="hidden xl:inline">Cambiar clave</span>
+                    </button>
+
+                    <!-- Logout Button -->
+                    <button id="btnLogout" title="Cerrar sesión segura" class="text-xs font-semibold text-slate-500 hover:text-[#DA2925] hover:bg-[#FDECEC] px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 border border-slate-200 hover:border-[#DA2925]/30">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span class="hidden sm:inline">Salir</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <nav class="flex items-center gap-1 overflow-x-auto -mb-px pt-1" aria-label="Vistas del planificador">
+                <button data-view="dashboard" class="tab-btn whitespace-nowrap px-4 py-2.5 text-sm font-semibold border-b-2 border-[#1F962B] text-[#1F962B] transition flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie"></i><span>Dashboard Ejecutivo</span>
+                </button>
+                <button data-view="gantt" class="tab-btn whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 transition flex items-center gap-2">
+                    <i class="fa-solid fa-bars-staggered"></i><span>Diagrama de Gantt</span>
+                </button>
+                <button data-view="list" class="tab-btn whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 transition flex items-center gap-2">
+                    <i class="fa-solid fa-list-check"></i><span>Lista / Tabla</span>
+                </button>
+                <button data-view="calendar" class="tab-btn whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 transition flex items-center gap-2">
+                    <i class="fa-regular fa-calendar"></i><span>Calendario</span>
+                </button>
+                <button data-view="deadlines" class="tab-btn whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 transition flex items-center gap-2">
+                    <i class="fa-regular fa-clock"></i><span>Por Fecha Límite</span>
+                </button>
+                <button id="tabUsers" data-view="users" class="tab-btn hidden whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 transition flex items-center gap-2">
+                    <i class="fa-solid fa-users"></i><span>Usuarios</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <div id="mustChangeBanner" class="hidden bg-amber-50 border-b border-amber-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-2 text-sm text-amber-900">
+            <span>Estás usando la clave estándar. Cámbiala por una propia antes de seguir trabajando.</span>
+            <button type="button" id="btnBannerChangePassword" class="font-semibold text-[#1F962B] hover:underline">Cambiar ahora</button>
+        </div>
+    </div>
+
+    <!-- ==================== GLOBAL FILTER BAR ==================== -->
+    <section class="bg-white/90 border-b border-slate-200 py-3">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center gap-2.5">
+            <!-- Search -->
+            <div class="relative flex-1 min-w-[200px]">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="filterSearch" placeholder="Buscar tarea o descripción..." class="w-full pl-8 pr-3 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:border-[#1F962B] focus:ring-2 focus:ring-[#1F962B]/15">
+            </div>
+
+            <!-- My Tasks Toggle -->
+            <button id="btnMyTasks" class="py-1.5 px-3 text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-[#EAF7EC] hover:text-[#1F962B] hover:border-[#1F962B]/40 rounded-xl transition flex items-center gap-1.5">
+                <i class="fa-solid fa-user-check"></i>
+                <span>Mis tareas</span>
+            </button>
+
+            <!-- Assignee Filter -->
+            <select id="filterAssignee" class="py-1.5 px-3 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-[#1F962B] cursor-pointer">
+                <option value="all">Todos los responsables</option>
+                <option value="arley">Dirección Controller (Arley)</option>
+                <option value="laura">Control Interno (Laura)</option>
+                <option value="diego">PMO (Diego)</option>
+                <option value="data">DATA (Vacante)</option>
+            </select>
+
+            <!-- Status Filter -->
+            <select id="filterStatus" class="py-1.5 px-3 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-[#1F962B] cursor-pointer">
+                <option value="all">Todos los estados</option>
+                <option value="En planeación">En planeación</option>
+                <option value="En progreso">En progreso</option>
+                <option value="En revisión">En revisión</option>
+                <option value="Finalizado">Finalizado</option>
+            </select>
+
+            <!-- Priority Filter -->
+            <select id="filterPriority" class="py-1.5 px-3 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-[#1F962B] cursor-pointer">
+                <option value="all">Todas las prioridades</option>
+                <option value="Alta">Prioridad Alta</option>
+                <option value="Media">Prioridad Media</option>
+                <option value="Baja">Prioridad Baja</option>
+            </select>
+
+            <!-- Clear Filters -->
+            <button id="btnClearFilters" title="Limpiar filtros" class="py-1.5 px-3 text-xs sm:text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition">
+                <i class="fa-solid fa-filter-circle-xmark mr-1"></i>Limpiar
+            </button>
+
+            <!-- Export CSV -->
+            <button id="btnExportCSV" title="Descargar plan en Excel / CSV" class="ml-auto py-1.5 px-3 text-xs sm:text-sm font-semibold text-[#1F962B] bg-[#EAF7EC] hover:bg-[#1F962B] hover:text-white border border-[#1F962B]/30 rounded-xl transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-csv"></i>
+                <span class="hidden sm:inline">Exportar CSV</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- ==================== MAIN CONTENT AREA ==================== -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative">
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="flex flex-col items-center justify-center py-20 text-slate-500">
+            <i class="fa-solid fa-circle-notch fa-spin text-3xl text-[#1F962B] mb-3"></i>
+            <p class="text-sm font-medium">Cargando plan de trabajo de Colbeef®...</p>
+        </div>
+
+        <!-- ========== VIEW 1: DASHBOARD EJECUTIVO ========== -->
+        <section id="view-dashboard" class="view-section hidden space-y-6">
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Tareas</span>
+                        <span class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fa-solid fa-layer-group"></i></span>
+                    </div>
+                    <div id="kpiTotal" class="text-3xl font-extrabold text-slate-900 mt-2">0</div>
+                    <div id="kpiTotalSub" class="text-xs text-[#1F962B] font-semibold mt-1">0 finalizadas</div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Cumplimiento Global</span>
+                        <span class="w-9 h-9 rounded-xl bg-[#EAF7EC] text-[#1F962B] flex items-center justify-center"><i class="fa-solid fa-bullseye"></i></span>
+                    </div>
+                    <div id="kpiAvgProgress" class="text-3xl font-extrabold text-slate-900 mt-2">0%</div>
+                    <div class="w-full h-2 bg-slate-100 rounded-full mt-2.5 overflow-hidden">
+                        <div id="kpiAvgBar" class="h-full bg-[#1F962B] rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">En Riesgo / Vencidas</span>
+                        <span class="w-9 h-9 rounded-xl bg-[#FDECEC] text-[#DA2925] flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                    </div>
+                    <div id="kpiAtRisk" class="text-3xl font-extrabold text-[#DA2925] mt-2">0</div>
+                    <div class="text-xs text-slate-500 mt-1">Vencidas o vencen en &lt;48h</div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Horas Ejecutadas</span>
+                        <span class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center"><i class="fa-regular fa-clock"></i></span>
+                    </div>
+                    <div id="kpiHours" class="text-3xl font-extrabold text-slate-900 mt-2">0h</div>
+                    <div id="kpiHoursSub" class="text-xs text-slate-500 mt-1">de 0h planeadas</div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-800 mb-1">Distribución por Estado</h3>
+                    <p class="text-xs text-slate-400 mb-4">Estado actual de las tareas del equipo</p>
+                    <div class="h-64 relative"><canvas id="chartStatus"></canvas></div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-800 mb-1">Carga de Trabajo por Integrante</h3>
+                    <p class="text-xs text-slate-400 mb-4">Cantidad de tareas desglosadas por estado</p>
+                    <div class="h-64 relative"><canvas id="chartWorkload"></canvas></div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-800 mb-1">Porcentaje Promedio de Avance por Área</h3>
+                    <p class="text-xs text-slate-400 mb-4">Progreso consolidado de cada frente</p>
+                    <div class="h-64 relative"><canvas id="chartProgress"></canvas></div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-800 mb-1">Semáforo de Vencimientos</h3>
+                    <p class="text-xs text-slate-400 mb-4">Control preventivo de fechas límite</p>
+                    <div class="h-64 relative"><canvas id="chartDeadlines"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== VIEW 2: DIAGRAMA DE GANTT ========== -->
+        <section id="view-gantt" class="view-section hidden space-y-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Cronograma del Equipo (Diagrama de Gantt)</h2>
+                    <p id="ganttRangeLabel" class="text-xs text-slate-500 mt-0.5"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="ganttPrev" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"><i class="fa-solid fa-chevron-left mr-1"></i>-1 sem</button>
+                    <button id="ganttToday" class="px-3 py-1.5 text-xs font-semibold text-[#1F962B] bg-[#EAF7EC] hover:bg-[#1F962B] hover:text-white rounded-xl transition">Hoy</button>
+                    <button id="ganttNext" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">+1 sem<i class="fa-solid fa-chevron-right ml-1"></i></button>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+                <div id="ganttContainer" class="min-w-[900px]"></div>
+            </div>
+        </section>
+
+        <!-- ========== VIEW 3: LISTA / TABLA ========== -->
+        <section id="view-list" class="view-section hidden space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <label for="listGroupBy" class="text-xs font-semibold text-slate-600">Agrupar por:</label>
+                    <select id="listGroupBy" class="py-1.5 px-3 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-[#1F962B]">
+                        <option value="assignee">Responsable / Área</option>
+                        <option value="status">Estado</option>
+                        <option value="none">Sin agrupar</option>
+                    </select>
+                </div>
+                <span id="listCountBadge" class="text-xs font-semibold text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full">0 tareas</span>
+            </div>
+            <div id="listContainer" class="space-y-5"></div>
+        </section>
+
+        <!-- ========== VIEW 4: CALENDARIO ========== -->
+        <section id="view-calendar" class="view-section hidden space-y-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                <h2 id="calMonthLabel" class="text-base font-bold text-slate-900 capitalize"></h2>
+                <div class="flex items-center gap-2">
+                    <button id="calPrev" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button id="calToday" class="px-3 py-1.5 text-xs font-semibold text-[#1F962B] bg-[#EAF7EC] hover:bg-[#1F962B] hover:text-white rounded-xl transition">Hoy</button>
+                    <button id="calNext" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="grid grid-cols-7 bg-slate-50 border-b border-slate-200 text-center text-xs font-bold text-slate-500 py-2.5">
+                    <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+                </div>
+                <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-200"></div>
+            </div>
+        </section>
+
+        <!-- ========== VIEW 5: POR FECHA LÍMITE ========== -->
+        <section id="view-deadlines" class="view-section hidden">
+            <div id="deadlinesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </section>
+
+        <section id="view-users" class="view-section hidden space-y-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">Usuarios del planificador</h2>
+                        <p id="standardPasswordHint" class="text-xs text-slate-500 mt-1">Solo el director controller crea, edita y restablece cuentas.</p>
+                    </div>
+                </div>
+                <form id="userForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                    <input type="hidden" id="userId">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre</label>
+                        <input id="userName" required maxlength="120" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Correo</label>
+                        <input id="userEmail" type="email" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Perfil</label>
+                        <input id="userProfile" required placeholder="laura, diego, data..." class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Rol</label>
+                        <select id="userRole" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                            <option value="member">Integrante</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="submit" id="btnSaveUser" class="flex-1 px-3 py-2 text-sm font-semibold text-white bg-[#1F962B] hover:bg-[#177520] rounded-xl">Crear</button>
+                        <button type="button" id="btnCancelUser" class="px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Limpiar</button>
+                    </div>
+                </form>
+            </div>
+            <div id="usersContainer" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
+        </section>
+    </main>
+
+    <!-- ==================== TASK DETAIL / EDIT MODAL ==================== -->
+    <div id="taskModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <h3 id="modalTitle" class="text-base font-bold text-slate-900">Nueva Tarea</h3>
+                <button id="btnCloseModal" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-5 flex-1">
+                <form id="taskForm" class="space-y-4">
+                    <input type="hidden" id="taskId">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Título de la tarea *</label>
+                        <input type="text" id="taskTitle" required placeholder="Ej. Cierre financiero mensual y revisión de costos" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B] focus:ring-2 focus:ring-[#1F962B]/15">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Descripción breve</label>
+                        <textarea id="taskDesc" rows="2" placeholder="Alcance, entregables esperados o dependencias..." class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B] focus:ring-2 focus:ring-[#1F962B]/15"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Responsable / Área</label>
+                            <select id="taskAssignee" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                                <option value="arley">Dirección Controller – Arley Quesada</option>
+                                <option value="laura">Control Interno – Laura Higuera</option>
+                                <option value="diego">PMO – Diego Rojas</option>
+                                <option value="data">DATA – Pdte. contratación</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Prioridad</label>
+                            <select id="taskPriority" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                                <option value="Alta">Alta</option>
+                                <option value="Media">Media</option>
+                                <option value="Baja">Baja</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Fecha inicio *</label>
+                            <input type="date" id="taskStartDate" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Fecha límite *</label>
+                            <input type="date" id="taskDueDate" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Duración est. (Horas)</label>
+                            <input type="number" id="taskHours" min="1" max="500" value="8" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Estado actual</label>
+                            <select id="taskStatus" class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                                <option value="En planeación">En planeación</option>
+                                <option value="En progreso">En progreso</option>
+                                <option value="En revisión">En revisión</option>
+                                <option value="Finalizado">Finalizado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-xs font-semibold text-slate-700">Porcentaje de avance</label>
+                                <span id="taskProgressVal" class="text-xs font-extrabold text-[#1F962B]">0%</span>
+                            </div>
+                            <input type="range" id="taskProgress" min="0" max="100" step="5" value="0" class="w-full cursor-pointer">
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Bitácora de avances -->
+                <div class="border-t border-slate-200 pt-4 space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <i class="fa-regular fa-comment-dots text-[#1F962B]"></i> Bitácora de Avances
+                    </h4>
+                    <div class="flex gap-2">
+                        <input type="text" id="newLogInput" placeholder="Registrar nota rápida de avance..." class="flex-1 px-3.5 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                        <button type="button" id="btnAddLog" class="px-4 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition">Agregar</button>
+                    </div>
+                    <div id="logsList" class="space-y-2 max-h-40 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                <button type="button" id="btnDeleteInModal" class="hidden text-xs font-semibold text-[#DA2925] hover:bg-[#FDECEC] px-3 py-2 rounded-xl transition flex items-center gap-1.5">
+                    <i class="fa-regular fa-trash-can"></i> Eliminar tarea
+                </button>
+                <div class="flex items-center gap-2 ml-auto">
+                    <button type="button" id="btnCancelModal" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200/70 rounded-xl transition">Cancelar</button>
+                    <button type="button" id="btnSaveTask" class="px-5 py-2 text-sm font-semibold text-white bg-[#1F962B] hover:bg-[#177520] rounded-xl shadow-sm transition">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== CONFIRMATION MODAL ==================== -->
+    <div id="confirmModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#FDECEC] text-[#DA2925] flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h3 id="confirmTitle" class="text-base font-bold text-slate-900">Confirmar acción</h3>
+                    <p id="confirmMessage" class="text-sm text-slate-600 mt-1">¿Estás seguro de continuar?</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button id="btnConfirmCancel" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancelar</button>
+                <button id="btnConfirmOk" class="px-4 py-2 text-sm font-semibold text-white bg-[#DA2925] hover:bg-[#B51F1C] rounded-xl transition">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PASSWORD MODAL ==================== -->
+    <div id="passwordModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="text-base font-bold text-slate-900">Cambiar contraseña</h3>
+                <button type="button" id="btnClosePassword" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="passwordForm" class="px-6 py-5 space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Contraseña actual</label>
+                    <input type="password" id="currentPassword" required autocomplete="current-password" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Nueva contraseña</label>
+                    <input type="password" id="newPassword" required minlength="8" autocomplete="new-password" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Confirmar nueva contraseña</label>
+                    <input type="password" id="confirmPassword" required minlength="8" autocomplete="new-password" class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:border-[#1F962B]">
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button type="button" id="btnCancelPassword" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-[#1F962B] hover:bg-[#177520] rounded-xl">Guardar clave</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== TOAST NOTIFICATION ==================== -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ==================== APPLICATION LOGIC (FIREBASE + UI) ==================== -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
