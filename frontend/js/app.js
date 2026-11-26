@@ -176,7 +176,6 @@ function applyRolePermissions() {
     const profileSelect = document.getElementById('activeProfileSelect');
     const filterAssignee = document.getElementById('filterAssignee');
     const btnMyTasks = document.getElementById('btnMyTasks');
-    const btnRestoreDemo = document.getElementById('btnRestoreDemo');
     const btnNewTask = document.getElementById('btnNewTask');
     const roleBadge = document.getElementById('roleBadge');
     const tabUsers = document.getElementById('tabUsers');
@@ -185,7 +184,6 @@ function applyRolePermissions() {
     if (tabUsers) tabUsers.classList.toggle('hidden', !isDirector());
     if (tabUsage) tabUsage.classList.toggle('hidden', !isSuperAdmin());
     if (btnNewTask) btnNewTask.classList.toggle('hidden', isSuperAdmin());
-    if (btnRestoreDemo) btnRestoreDemo.classList.toggle('hidden', !isAdmin());
 
     if (viewer) {
         profileSelect.disabled = false;
@@ -366,18 +364,6 @@ async function initApp() {
 function finishLoading() {
     document.getElementById('loadingOverlay').classList.add('hidden');
     switchView(currentView);
-}
-
-async function restoreDemoData() {
-    try {
-        await api.restoreDemo();
-        lastSnapshot = '';
-        await refreshTasks(true);
-        showToast('Tareas de ejemplo restauradas en la base', 'success');
-    } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Error al restaurar las tareas de ejemplo', 'error');
-    }
 }
 
 async function saveTaskToDB(taskData, id = null) {
@@ -1541,14 +1527,6 @@ document.getElementById('activeProfileSelect').addEventListener('change', (e) =>
     activeProfile = e.target.value;
     showToast(`Perfil activo: ${memberOf(activeProfile).name}`, 'info');
     if (filters.onlyMine) renderCurrentView();
-});
-
-document.getElementById('btnRestoreDemo').addEventListener('click', () => {
-    openConfirmModal(
-        'Restaurar datos demo Colbeef',
-        'Esto reemplazará las tareas actuales por las 12 tareas de ejemplo del equipo Controller. ¿Deseas continuar?',
-        restoreDemoData
-    );
 });
 
 document.getElementById('btnNewTask').addEventListener('click', () => openTaskModal(null));

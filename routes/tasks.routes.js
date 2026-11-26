@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { insertSeedTasks, logActivity, pool } from '../db.js';
-import { authenticate, requireAdmin, seesAll } from '../middleware/auth.js';
+import { logActivity, pool } from '../db.js';
+import { authenticate, seesAll } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -253,23 +253,6 @@ router.delete('/:id', async (req, res) => {
     } catch (err) {
         console.error(err);
         return res.status(500).json({ error: 'No se pudo eliminar la tarea' });
-    }
-});
-
-router.post('/restore', requireAdmin, async (_req, res) => {
-    const conn = await pool.getConnection();
-    try {
-        await conn.beginTransaction();
-        await conn.query('DELETE FROM tasks');
-        await insertSeedTasks(conn);
-        await conn.commit();
-        return res.json({ ok: true });
-    } catch (err) {
-        await conn.rollback();
-        console.error(err);
-        return res.status(500).json({ error: 'No se pudieron restaurar las tareas de ejemplo' });
-    } finally {
-        conn.release();
     }
 });
 

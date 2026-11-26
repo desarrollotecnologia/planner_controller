@@ -73,9 +73,6 @@ export const api = {
     deleteTask(id) {
         return request(`/api/tasks/${id}`, { method: 'DELETE' });
     },
-    restoreDemo() {
-        return request('/api/tasks/restore', { method: 'POST', body: {} });
-    },
     usage() {
         return request('/api/usage');
     },
