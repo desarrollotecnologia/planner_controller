@@ -31,7 +31,7 @@ async function ensureTables() {
             password_hash VARCHAR(255) NOT NULL,
             full_name VARCHAR(120) NOT NULL,
             profile_key VARCHAR(32) NOT NULL,
-            role ENUM('admin', 'member') NOT NULL DEFAULT 'member',
+            role ENUM('admin', 'member', 'superadmin') NOT NULL DEFAULT 'member',
             active TINYINT(1) NOT NULL DEFAULT 1,
             must_change_password TINYINT(1) NOT NULL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -76,6 +76,53 @@ async function ensureTables() {
             CONSTRAINT fk_task_logs_task FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
         ) ENGINE=InnoDB
     `);
+    await pool.query(
+        "ALTER TABLE users MODIFY role ENUM('admin', 'member', 'superadmin') NOT NULL DEFAULT 'member'"
+    );
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS activity_log (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_email VARCHAR(190) NOT NULL,
+            action VARCHAR(40) NOT NULL,
+            detail VARCHAR(255) NOT NULL DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_activity_created (created_at),
+            INDEX idx_activity_email (user_email)
+        ) ENGINE=InnoDB
+    `);
+}
+
+export async function logActivity(email, action, detail = '') {
+    const safeEmail = String(email || '').slice(0, 190);
+    const safeAction = String(action || '').slice(0, 40);
+    const safeDetail = String(detail || '').slice(0, 255);
+    if (!safeEmail || !safeAction) return;
+    try {
+        await pool.query(
+            'INSERT INTO activity_log (user_email, action, detail) VALUES (?, ?, ?)',
+            [safeEmail, safeAction, safeDetail]
+        );
+    } catch (err) {
+        console.error('No se pudo registrar la actividad', err.message);
+    }
+}
+
+async function ensureSuperAdmin() {
+    const email = 'tic@colbeef.com';
+    const [rows] = await pool.query('SELECT id FROM users WHERE email = ? OR profile_key = ? LIMIT 1', [email, 'tic']);
+    if (rows.length) return;
+    const password = process.env.TIC_PASSWORD || '';
+    if (password.length < 8) {
+        console.warn('No se creó la cuenta TIC. Define TIC_PASSWORD en .env (mínimo 8 caracteres).');
+        return;
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    await pool.query(
+        `INSERT INTO users (email, password_hash, full_name, profile_key, role, active, must_change_password)
+         VALUES (?, ?, 'TIC', 'tic', 'superadmin', 1, 0)`,
+        [email, passwordHash]
+    );
+    console.log('Cuenta super admin TIC creada.');
 }
 
 export async function insertSeedTasks(conn = pool) {
@@ -134,6 +181,8 @@ export async function prepareDatabase() {
         }
         console.log('Usuarios iniciales creados. Cada persona debe cambiar su clave al entrar.');
     }
+
+    await ensureSuperAdmin();
 
     const [taskCountRows] = await pool.query('SELECT COUNT(*) AS total FROM tasks');
     if (Number(taskCountRows[0].total) === 0) {

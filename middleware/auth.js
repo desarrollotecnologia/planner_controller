@@ -27,6 +27,16 @@ export function authenticate(req, res, next) {
 }
 
 export const DIRECTOR_EMAIL = 'director.controller@colbeef.com';
+export const SUPERADMIN_EMAIL = 'tic@colbeef.com';
+
+export function seesAll(user) {
+    return user?.role === 'admin' || user?.role === 'superadmin';
+}
+
+export function isSuperAdminAccount(row) {
+    if (!row) return false;
+    return row.role === 'superadmin' || String(row.email || '').toLowerCase() === SUPERADMIN_EMAIL;
+}
 
 export function requireAdmin(req, res, next) {
     if (req.user?.role !== 'admin') {
@@ -38,6 +48,13 @@ export function requireAdmin(req, res, next) {
 export function requireDirector(req, res, next) {
     if ((req.user?.email || '').toLowerCase() !== DIRECTOR_EMAIL) {
         return res.status(403).json({ error: 'Solo el director controller puede gestionar usuarios' });
+    }
+    next();
+}
+
+export function requireSuperAdmin(req, res, next) {
+    if (req.user?.role !== 'superadmin') {
+        return res.status(403).json({ error: 'Solo el super admin puede ver la usabilidad' });
     }
     next();
 }

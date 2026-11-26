@@ -11,6 +11,7 @@ const TEAM = {
 };
 
 const DIRECTOR_EMAIL = 'director.controller@colbeef.com';
+const TIC_EMAIL = 'tic@colbeef.com';
 const EXTRA_PROFILES = {};
 
 function memberOf(key) {
@@ -39,6 +40,14 @@ function profileKeys() {
 
 function isDirector() {
     return activeUserEmail === DIRECTOR_EMAIL;
+}
+
+function isSuperAdmin() {
+    return currentUserRole === 'superadmin';
+}
+
+function seesAll() {
+    return isAdmin() || isSuperAdmin();
 }
 
 const STATUS_CONFIG = {
@@ -163,27 +172,33 @@ function setAuthenticatedUI(user) {
 }
 
 function applyRolePermissions() {
-    const admin = isAdmin();
+    const viewer = seesAll();
     const profileSelect = document.getElementById('activeProfileSelect');
     const filterAssignee = document.getElementById('filterAssignee');
     const btnMyTasks = document.getElementById('btnMyTasks');
     const btnRestoreDemo = document.getElementById('btnRestoreDemo');
+    const btnNewTask = document.getElementById('btnNewTask');
     const roleBadge = document.getElementById('roleBadge');
     const tabUsers = document.getElementById('tabUsers');
+    const tabUsage = document.getElementById('tabUsage');
 
     if (tabUsers) tabUsers.classList.toggle('hidden', !isDirector());
+    if (tabUsage) tabUsage.classList.toggle('hidden', !isSuperAdmin());
+    if (btnNewTask) btnNewTask.classList.toggle('hidden', isSuperAdmin());
+    if (btnRestoreDemo) btnRestoreDemo.classList.toggle('hidden', !isAdmin());
 
-    if (admin) {
+    if (viewer) {
         profileSelect.disabled = false;
         profileSelect.classList.remove('opacity-75', 'cursor-not-allowed');
         filterAssignee.classList.remove('hidden');
         filterAssignee.value = 'all';
         filters.assignee = 'all';
         btnMyTasks.classList.remove('hidden');
-        btnRestoreDemo.classList.remove('hidden');
         if (roleBadge) {
-            roleBadge.textContent = 'Admin';
-            roleBadge.className = 'ml-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-[#EAF7EC] text-[#1F962B] border border-[#1F962B]/30';
+            roleBadge.textContent = isSuperAdmin() ? 'Super admin' : 'Admin';
+            roleBadge.className = isSuperAdmin()
+                ? 'ml-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-slate-800 text-white'
+                : 'ml-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-[#EAF7EC] text-[#1F962B] border border-[#1F962B]/30';
         }
     } else {
         activeProfile = loggedInProfile;
@@ -195,7 +210,6 @@ function applyRolePermissions() {
         filters.assignee = loggedInProfile;
         filters.onlyMine = false;
         btnMyTasks.classList.add('hidden');
-        btnRestoreDemo.classList.add('hidden');
         if (roleBadge) {
             roleBadge.textContent = 'Mis tareas';
             roleBadge.className = 'ml-1.5 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700';
@@ -380,6 +394,10 @@ async function saveTaskToDB(taskData, id = null) {
 }
 
 async function quickUpdateTask(id, updates) {
+    if (isSuperAdmin()) {
+        showToast('Esta cuenta solo visualiza la información', 'error');
+        return;
+    }
     try {
         await api.patchTask(id, updates);
         lastSnapshot = '';
@@ -391,6 +409,7 @@ async function quickUpdateTask(id, updates) {
 }
 
 async function deleteTaskFromDB(id) {
+    if (isSuperAdmin()) return;
     try {
         await api.deleteTask(id);
         lastSnapshot = '';
@@ -418,7 +437,7 @@ function closePasswordModal() {
 function getFilteredTasks() {
     return allTasks.filter(t => {
         // Restricción estricta: usuarios no administradores solo ven sus propias tareas
-        if (!isAdmin() && t.assignee !== loggedInProfile) return false;
+        if (!seesAll() && t.assignee !== loggedInProfile) return false;
         if (filters.onlyMine && t.assignee !== activeProfile) return false;
         if (filters.assignee !== 'all' && t.assignee !== filters.assignee) return false;
         if (filters.status !== 'all' && t.status !== filters.status) return false;
@@ -467,6 +486,8 @@ function exportToCSV() {
 }
 
 function switchView(viewName) {
+    if (viewName === 'users' && !isDirector()) viewName = 'dashboard';
+    if (viewName === 'usage' && !isSuperAdmin()) viewName = 'dashboard';
     currentView = viewName;
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
     const target = document.getElementById(`view-${viewName}`);
@@ -479,8 +500,10 @@ function switchView(viewName) {
             btn.className = 'tab-btn whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 transition flex items-center gap-2';
         }
         if (btn.id === 'tabUsers' && !isDirector()) btn.classList.add('hidden');
+        if (btn.id === 'tabUsage' && !isSuperAdmin()) btn.classList.add('hidden');
     });
 
+    if (activeUserEmail) api.trackView(viewName).catch(() => {});
     renderCurrentView();
 }
 
@@ -492,6 +515,7 @@ function renderCurrentView() {
     else if (currentView === 'calendar') renderCalendar(filtered);
     else if (currentView === 'deadlines') renderDeadlines(filtered);
     else if (currentView === 'users') renderUsers();
+    else if (currentView === 'usage') renderUsage();
 }
 
 // ==========================================
@@ -545,7 +569,7 @@ function renderDashboard(tasks) {
     });
 
     // Chart 2: Stacked Bar Workload by Member & Status
-    const memberKeys = isAdmin() ? profileKeys() : [loggedInProfile];
+    const memberKeys = seesAll() ? profileKeys() : [loggedInProfile];
     const memberLabels = memberKeys.map(k => memberOf(k).short);
     const datasetsWorkload = statuses.map(status => ({
         label: status,
@@ -826,6 +850,23 @@ function renderTableRow(t) {
         alertBadge = `<span class="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md ml-1.5"><i class="fa-regular fa-clock"></i> &lt;48h</span>`;
     }
 
+    const readOnly = isSuperAdmin();
+    const statusCell = readOnly
+        ? `<span class="text-xs font-semibold px-2.5 py-1.5 rounded-xl border ${stCfg.bg} ${stCfg.text} ${stCfg.border}">${t.status}</span>`
+        : `<select onchange="window.inlineStatusChange('${t.id}', this.value)"
+                        class="text-xs font-semibold px-2.5 py-1.5 rounded-xl border cursor-pointer focus:outline-none ${stCfg.bg} ${stCfg.text} ${stCfg.border}">
+                    ${Object.keys(STATUS_CONFIG).map(st => `<option value="${st}" ${t.status === st ? 'selected' : ''}>${st}</option>`).join('')}
+                </select>`;
+    const progressCell = readOnly
+        ? `<span class="text-xs font-bold text-slate-700">${t.progress}%</span>`
+        : `<div class="flex items-center gap-2">
+                    <input type="range" min="0" max="100" step="5" value="${t.progress}"
+                           onchange="window.inlineProgressChange('${t.id}', this.value)"
+                           oninput="this.nextElementSibling.textContent = this.value + '%'"
+                           class="w-24 cursor-pointer">
+                    <span class="text-xs font-bold text-slate-700 w-9 text-right">${t.progress}%</span>
+                </div>`;
+
     return `
         <tr class="hover:bg-slate-50/70 transition">
             <td class="py-3 px-4 max-w-xs">
@@ -838,19 +879,10 @@ function renderTableRow(t) {
                 </span>
             </td>
             <td class="py-3 px-3 whitespace-nowrap">
-                <select onchange="window.inlineStatusChange('${t.id}', this.value)"
-                        class="text-xs font-semibold px-2.5 py-1.5 rounded-xl border cursor-pointer focus:outline-none ${stCfg.bg} ${stCfg.text} ${stCfg.border}">
-                    ${Object.keys(STATUS_CONFIG).map(st => `<option value="${st}" ${t.status === st ? 'selected' : ''}>${st}</option>`).join('')}
-                </select>
+                ${statusCell}
             </td>
             <td class="py-3 px-3">
-                <div class="flex items-center gap-2">
-                    <input type="range" min="0" max="100" step="5" value="${t.progress}"
-                           onchange="window.inlineProgressChange('${t.id}', this.value)"
-                           oninput="this.nextElementSibling.textContent = this.value + '%'"
-                           class="w-24 cursor-pointer">
-                    <span class="text-xs font-bold text-slate-700 w-9 text-right">${t.progress}%</span>
-                </div>
+                ${progressCell}
             </td>
             <td class="py-3 px-3 whitespace-nowrap">
                 <div class="flex items-center text-xs font-medium text-slate-700">
@@ -865,11 +897,11 @@ function renderTableRow(t) {
             </td>
             <td class="py-3 px-4 whitespace-nowrap text-right">
                 <button onclick="window.openTaskModal('${t.id}')" title="Ver detalle y bitácora" class="p-1.5 text-slate-500 hover:text-[#1F962B] hover:bg-[#EAF7EC] rounded-lg transition">
-                    <i class="fa-regular fa-pen-to-square"></i>
+                    <i class="fa-regular ${readOnly ? 'fa-eye' : 'fa-pen-to-square'}"></i>
                 </button>
-                <button onclick="window.requestDeleteTask('${t.id}')" title="Eliminar tarea" class="p-1.5 text-slate-400 hover:text-[#DA2925] hover:bg-[#FDECEC] rounded-lg transition ml-1">
+                ${readOnly ? '' : `<button onclick="window.requestDeleteTask('${t.id}')" title="Eliminar tarea" class="p-1.5 text-slate-400 hover:text-[#DA2925] hover:bg-[#FDECEC] rounded-lg transition ml-1">
                     <i class="fa-regular fa-trash-can"></i>
-                </button>
+                </button>`}
             </td>
         </tr>
     `;
@@ -1002,6 +1034,7 @@ function renderDeadlines(tasks) {
 // 12. MODAL & BITÁCORA LOGIC
 // ==========================================
 function openTaskModal(id = null) {
+    if (isSuperAdmin() && !id) return;
     const modal = document.getElementById('taskModal');
     const deleteBtn = document.getElementById('btnDeleteInModal');
     const assigneeSelect = document.getElementById('taskAssignee');
@@ -1010,7 +1043,7 @@ function openTaskModal(id = null) {
     if (id) {
         const task = allTasks.find(t => t.id === id);
         if (!task) return;
-        if (!isAdmin() && task.assignee !== loggedInProfile) {
+        if (!seesAll() && task.assignee !== loggedInProfile) {
             showToast('No tienes permiso para ver esta tarea', 'error');
             return;
         }
@@ -1047,12 +1080,24 @@ function openTaskModal(id = null) {
         deleteBtn.classList.add('hidden');
     }
 
-    // Los usuarios no administradores solo pueden crear/editar tareas asignadas a sí mismos
+    const readOnly = isSuperAdmin();
     if (!isAdmin()) {
-        assigneeSelect.value = loggedInProfile;
+        assigneeSelect.value = id ? assigneeSelect.value : loggedInProfile;
         assigneeSelect.disabled = true;
     } else {
         assigneeSelect.disabled = false;
+    }
+    ['taskTitle', 'taskDesc', 'taskPriority', 'taskStartDate', 'taskDueDate', 'taskHours', 'taskStatus', 'taskProgress', 'newLogInput'].forEach((fieldId) => {
+        const field = document.getElementById(fieldId);
+        if (field) field.disabled = readOnly;
+    });
+    if (readOnly) assigneeSelect.disabled = true;
+    document.getElementById('btnSaveTask').classList.toggle('hidden', readOnly);
+    document.getElementById('btnAddLog').classList.toggle('hidden', readOnly);
+    document.getElementById('newLogInput').classList.toggle('hidden', readOnly);
+    if (readOnly) {
+        deleteBtn.classList.add('hidden');
+        document.getElementById('modalTitle').textContent = 'Detalle de la tarea';
     }
 
     renderModalLogs();
@@ -1081,6 +1126,7 @@ function renderModalLogs() {
 }
 
 async function addLogNote() {
+    if (isSuperAdmin()) return;
     const input = document.getElementById('newLogInput');
     const text = input.value.trim();
     if (!text) return;
@@ -1101,6 +1147,7 @@ async function addLogNote() {
 }
 
 async function handleSaveTask() {
+    if (isSuperAdmin()) return;
     const form = document.getElementById('taskForm');
     if (!form.reportValidity()) return;
 
@@ -1255,6 +1302,104 @@ document.getElementById('btnBannerChangePassword').addEventListener('click', ope
 
 let directoryUsers = [];
 
+function roleLabel(role) {
+    if (role === 'superadmin') return 'Super admin';
+    if (role === 'admin') return 'Administrador';
+    return 'Integrante';
+}
+
+const VIEW_LABELS = {
+    dashboard: 'Dashboard',
+    gantt: 'Gantt',
+    list: 'Lista',
+    calendar: 'Calendario',
+    deadlines: 'Fechas límite',
+    users: 'Usuarios',
+    usage: 'Usabilidad',
+};
+
+const ACTION_LABELS = {
+    login: 'Ingresó',
+    view: 'Abrió una vista',
+    task_create: 'Creó una tarea',
+    task_update: 'Actualizó una tarea',
+    task_delete: 'Eliminó una tarea',
+    user_create: 'Creó un usuario',
+    user_update: 'Editó un usuario',
+    user_delete: 'Eliminó un usuario',
+    user_reset: 'Restableció una clave',
+};
+
+async function renderUsage() {
+    if (!isSuperAdmin()) {
+        switchView('dashboard');
+        return;
+    }
+    const summary = document.getElementById('usageSummary');
+    const views = document.getElementById('usageViews');
+    const people = document.getElementById('usageUsers');
+    const recent = document.getElementById('usageRecent');
+    try {
+        const data = await api.usage();
+        const cards = [
+            ['Usuarios activos', data.users],
+            ['Tareas en el plan', data.tasks],
+            ['Ingresos registrados', data.logins],
+        ];
+        summary.innerHTML = cards.map(([label, value]) => `
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">${label}</p>
+                <p class="mt-2 text-3xl font-bold text-slate-900">${value}</p>
+            </div>`).join('');
+        views.innerHTML = usageTable('Vistas usadas', ['Vista', 'Veces'], (data.byView || []).map((row) => [
+            VIEW_LABELS[row.viewName] || row.viewName,
+            row.total,
+        ]));
+        people.innerHTML = usageTable('Por persona', ['Correo', 'Ingresos', 'Vistas', 'Última actividad'], (data.byUser || []).map((row) => [
+            row.email,
+            row.logins,
+            row.views,
+            formatActivityDate(row.lastSeen),
+        ]));
+        recent.innerHTML = usageTable('Actividad reciente', ['Cuándo', 'Quién', 'Qué hizo', 'Detalle'], (data.recent || []).map((row) => [
+            formatActivityDate(row.createdAt),
+            row.email,
+            ACTION_LABELS[row.action] || row.action,
+            row.action === 'view' ? (VIEW_LABELS[row.detail] || row.detail) : row.detail,
+        ]));
+    } catch (err) {
+        summary.innerHTML = '';
+        views.innerHTML = '';
+        people.innerHTML = '';
+        recent.innerHTML = `<p class="p-6 text-sm text-[#DA2925]">${escapeHtml(err.message)}</p>`;
+    }
+}
+
+function usageTable(title, headers, rows) {
+    const body = rows.length
+        ? rows.map((row) => `<tr>${row.map((cell) => `<td class="px-3 py-2.5 text-slate-600">${escapeHtml(String(cell ?? ''))}</td>`).join('')}</tr>`).join('')
+        : `<tr><td class="px-4 py-6 text-sm text-slate-400" colspan="${headers.length}">Todavía no hay registros.</td></tr>`;
+    return `
+        <div class="px-4 py-3 border-b border-slate-100">
+            <h3 class="text-sm font-bold text-slate-800">${title}</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-400">
+                    <tr>${headers.map((header) => `<th class="px-3 py-3">${header}</th>`).join('')}</tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">${body}</tbody>
+            </table>
+        </div>`;
+}
+
+function formatActivityDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+}
+
 function resetUserForm() {
     document.getElementById('userForm').reset();
     document.getElementById('userId').value = '';
@@ -1291,7 +1436,7 @@ async function renderUsers() {
                                 <td class="px-4 py-3 font-semibold text-slate-800">${escapeHtml(user.fullName)}</td>
                                 <td class="px-3 py-3 text-slate-600">${escapeHtml(user.email)}</td>
                                 <td class="px-3 py-3 text-slate-600">${escapeHtml(user.profileKey)}</td>
-                                <td class="px-3 py-3 text-slate-600">${user.role === 'admin' ? 'Administrador' : 'Integrante'}</td>
+                                <td class="px-3 py-3 text-slate-600">${roleLabel(user.role)}</td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">
                                     <button type="button" data-user-action="edit" data-user-id="${user.id}" class="px-2 py-1 text-xs font-semibold text-[#1F962B] hover:bg-[#EAF7EC] rounded-lg">Editar</button>
                                     <button type="button" data-user-action="reset" data-user-id="${user.id}" class="px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Restablecer clave</button>
@@ -1389,7 +1534,7 @@ document.getElementById('btnLogout').addEventListener('click', () => {
 
 // Header Controls
 document.getElementById('activeProfileSelect').addEventListener('change', (e) => {
-    if (!isAdmin()) {
+    if (!seesAll()) {
         e.target.value = loggedInProfile;
         return;
     }
@@ -1441,9 +1586,9 @@ document.getElementById('filterPriority').addEventListener('change', (e) => {
 });
 
 document.getElementById('btnClearFilters').addEventListener('click', () => {
-    filters = { search: '', assignee: isAdmin() ? 'all' : loggedInProfile, status: 'all', priority: 'all', onlyMine: false };
+    filters = { search: '', assignee: seesAll() ? 'all' : loggedInProfile, status: 'all', priority: 'all', onlyMine: false };
     document.getElementById('filterSearch').value = '';
-    document.getElementById('filterAssignee').value = isAdmin() ? 'all' : loggedInProfile;
+    document.getElementById('filterAssignee').value = seesAll() ? 'all' : loggedInProfile;
     document.getElementById('filterStatus').value = 'all';
     document.getElementById('filterPriority').value = 'all';
     document.getElementById('btnMyTasks').className = 'py-1.5 px-3 text-xs sm:text-sm font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-[#EAF7EC] hover:text-[#1F962B] hover:border-[#1F962B]/40 rounded-xl transition flex items-center gap-1.5';

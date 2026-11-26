@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { insertSeedTasks, pool } from '../db.js';
-import { authenticate, requireAdmin } from '../middleware/auth.js';
+import { insertSeedTasks, logActivity, pool } from '../db.js';
+import { authenticate, requireAdmin, seesAll } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -44,12 +44,17 @@ async function logsByTask(ids) {
 }
 
 function canTouch(user, task) {
+    if (user.role === 'superadmin') return false;
     return user.role === 'admin' || task.assignee === user.profileKey;
 }
 
 async function assigneeAllowed(key) {
+    if (key === 'tic') return false;
     if (BASE_ASSIGNEES.includes(key)) return true;
-    const [rows] = await pool.query('SELECT id FROM users WHERE profile_key = ? LIMIT 1', [key]);
+    const [rows] = await pool.query(
+        "SELECT id FROM users WHERE profile_key = ? AND role <> 'superadmin' LIMIT 1",
+        [key]
+    );
     return rows.length > 0;
 }
 
@@ -111,7 +116,7 @@ router.get('/', async (req, res) => {
     try {
         const params = [];
         let where = '';
-        if (req.user.role !== 'admin') {
+        if (!seesAll(req.user)) {
             where = 'WHERE assignee = ?';
             params.push(req.user.profileKey);
         }
@@ -128,6 +133,9 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+    if (req.user.role === 'superadmin') {
+        return res.status(403).json({ error: 'Esta cuenta solo visualiza la información' });
+    }
     const parsed = readTaskBody(req.user, req.body || {}, { partial: false, existing: null });
     if (parsed.error) return res.status(400).json({ error: parsed.error });
     if (!(await assigneeAllowed(parsed.data.assignee))) {
@@ -146,6 +154,7 @@ router.post('/', async (req, res) => {
         );
         await replaceLogs(conn, result.insertId, task.logs || []);
         await conn.commit();
+        await logActivity(req.user.email, 'task_create', task.title);
         return res.status(201).json({ id: String(result.insertId) });
     } catch (err) {
         await conn.rollback();
@@ -164,6 +173,7 @@ router.put('/:id', async (req, res) => {
         const [rows] = await conn.query('SELECT * FROM tasks WHERE id = ?', [id]);
         const existing = rows[0];
         if (!existing) return res.status(404).json({ error: 'La tarea no existe' });
+        if (req.user.role === 'superadmin') return res.status(403).json({ error: 'Esta cuenta solo visualiza la información' });
         if (!canTouch(req.user, existing)) return res.status(403).json({ error: 'No puedes modificar esta tarea' });
 
         const parsed = readTaskBody(req.user, req.body || {}, { partial: false, existing });
@@ -181,6 +191,7 @@ router.put('/:id', async (req, res) => {
         );
         await replaceLogs(conn, id, task.logs || []);
         await conn.commit();
+        await logActivity(req.user.email, 'task_update', task.title);
         return res.json({ id: String(id) });
     } catch (err) {
         await conn.rollback();
@@ -216,6 +227,7 @@ router.patch('/:id', async (req, res) => {
         );
         if (task.logs) await replaceLogs(conn, id, task.logs);
         await conn.commit();
+        await logActivity(req.user.email, 'task_update', existing.title);
         return res.json({ id: String(id) });
     } catch (err) {
         await conn.rollback();
@@ -233,8 +245,10 @@ router.delete('/:id', async (req, res) => {
         const [rows] = await pool.query('SELECT * FROM tasks WHERE id = ?', [id]);
         const existing = rows[0];
         if (!existing) return res.status(404).json({ error: 'La tarea no existe' });
+        if (req.user.role === 'superadmin') return res.status(403).json({ error: 'Esta cuenta solo visualiza la información' });
         if (!canTouch(req.user, existing)) return res.status(403).json({ error: 'No puedes eliminar esta tarea' });
         await pool.query('DELETE FROM tasks WHERE id = ?', [id]);
+        await logActivity(req.user.email, 'task_delete', existing.title);
         return res.json({ ok: true });
     } catch (err) {
         console.error(err);

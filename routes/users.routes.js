@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { pool } from '../db.js';
-import { authenticate, DIRECTOR_EMAIL, publicUser, requireDirector, standardPassword } from '../middleware/auth.js';
+import { logActivity, pool } from '../db.js';
+import { authenticate, DIRECTOR_EMAIL, isSuperAdminAccount, publicUser, requireDirector, standardPassword } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -11,6 +11,9 @@ function readUserBody(body) {
     const email = String(body.email || '').trim().toLowerCase();
     const fullName = String(body.fullName || '').trim();
     const profileKey = String(body.profileKey || '').trim().toLowerCase();
+    if (body.role === 'superadmin') {
+        return { error: 'Rol no válido' };
+    }
     const role = body.role === 'admin' ? 'admin' : 'member';
     const active = body.active === undefined ? true : Boolean(body.active);
 
@@ -25,7 +28,7 @@ function readUserBody(body) {
 router.get('/profiles', async (_req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT profile_key, full_name, role FROM users WHERE active = 1 ORDER BY full_name'
+            "SELECT profile_key, full_name, role FROM users WHERE active = 1 AND role <> 'superadmin' ORDER BY full_name"
         );
         return res.json(rows.map((row) => ({
             profileKey: row.profile_key,
@@ -41,7 +44,7 @@ router.get('/profiles', async (_req, res) => {
 router.get('/', requireDirector, async (_req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT id, email, full_name, profile_key, role, active, must_change_password FROM users ORDER BY full_name'
+            "SELECT id, email, full_name, profile_key, role, active, must_change_password FROM users WHERE role <> 'superadmin' ORDER BY full_name"
         );
         return res.json({
             standardPassword: standardPassword(),
@@ -64,6 +67,7 @@ router.post('/', requireDirector, async (req, res) => {
              VALUES (?, ?, ?, ?, ?, ?, 1)`,
             [user.email, passwordHash, user.fullName, user.profileKey, user.role, user.active ? 1 : 0]
         );
+        await logActivity(req.user.email, 'user_create', user.email);
         return res.status(201).json({ id: result.insertId, standardPassword: standardPassword() });
     } catch (err) {
         if (err.code === 'ER_DUP_ENTRY') {
@@ -86,6 +90,9 @@ router.put('/:id', requireDirector, async (req, res) => {
         const existing = rows[0];
         if (!existing) return res.status(404).json({ error: 'El usuario no existe' });
 
+        if (isSuperAdminAccount(existing)) {
+            return res.status(404).json({ error: 'El usuario no existe' });
+        }
         const isDirectorAccount = existing.email.toLowerCase() === DIRECTOR_EMAIL;
         if (isDirectorAccount && (user.role !== 'admin' || !user.active || user.email !== DIRECTOR_EMAIL)) {
             return res.status(400).json({ error: 'La cuenta del director controller no se puede desactivar ni cambiar de correo' });
@@ -95,6 +102,7 @@ router.put('/:id', requireDirector, async (req, res) => {
             `UPDATE users SET email = ?, full_name = ?, profile_key = ?, role = ?, active = ? WHERE id = ?`,
             [user.email, user.fullName, user.profileKey, user.role, user.active ? 1 : 0, id]
         );
+        await logActivity(req.user.email, 'user_update', user.email);
         return res.json({ ok: true });
     } catch (err) {
         if (err.code === 'ER_DUP_ENTRY') {
@@ -109,12 +117,16 @@ router.delete('/:id', requireDirector, async (req, res) => {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: 'Usuario no válido' });
     try {
-        const [rows] = await pool.query('SELECT email FROM users WHERE id = ?', [id]);
+        const [rows] = await pool.query('SELECT email, role FROM users WHERE id = ?', [id]);
         if (!rows[0]) return res.status(404).json({ error: 'El usuario no existe' });
         if (rows[0].email.toLowerCase() === DIRECTOR_EMAIL) {
             return res.status(400).json({ error: 'No se puede eliminar la cuenta del director controller' });
         }
+        if (isSuperAdminAccount(rows[0])) {
+            return res.status(404).json({ error: 'El usuario no existe' });
+        }
         await pool.query('DELETE FROM users WHERE id = ?', [id]);
+        await logActivity(req.user.email, 'user_delete', rows[0].email);
         return res.json({ ok: true });
     } catch (err) {
         console.error(err);
@@ -126,6 +138,11 @@ router.post('/:id/reset-password', requireDirector, async (req, res) => {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: 'Usuario no válido' });
     try {
+        const [rows] = await pool.query('SELECT email, role FROM users WHERE id = ?', [id]);
+        if (!rows[0]) return res.status(404).json({ error: 'El usuario no existe' });
+        if (isSuperAdminAccount(rows[0])) {
+            return res.status(404).json({ error: 'El usuario no existe' });
+        }
         const password = standardPassword();
         const passwordHash = await bcrypt.hash(password, 10);
         const [result] = await pool.query(
@@ -133,6 +150,7 @@ router.post('/:id/reset-password', requireDirector, async (req, res) => {
             [passwordHash, id]
         );
         if (!result.affectedRows) return res.status(404).json({ error: 'El usuario no existe' });
+        await logActivity(req.user.email, 'user_reset', rows[0].email);
         return res.json({ ok: true, standardPassword: password });
     } catch (err) {
         console.error(err);

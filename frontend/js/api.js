@@ -76,4 +76,10 @@ export const api = {
     restoreDemo() {
         return request('/api/tasks/restore', { method: 'POST', body: {} });
     },
+    usage() {
+        return request('/api/usage');
+    },
+    trackView(view) {
+        return request('/api/usage', { method: 'POST', body: { view } });
+    },
 };

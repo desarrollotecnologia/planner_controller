@@ -8,6 +8,7 @@ import { prepareDatabase } from './db.js';
 import authRoutes from './routes/auth.routes.js';
 import taskRoutes from './routes/tasks.routes.js';
 import userRoutes from './routes/users.routes.js';
+import usageRoutes from './routes/usage.routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendDir = path.join(__dirname, 'frontend');
@@ -18,6 +19,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/usage', usageRoutes);
 app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
 });

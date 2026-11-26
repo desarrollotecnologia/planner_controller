@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   full_name VARCHAR(120) NOT NULL,
   profile_key VARCHAR(32) NOT NULL,
-  role ENUM('admin', 'member') NOT NULL DEFAULT 'member',
+  role ENUM('admin', 'member', 'superadmin') NOT NULL DEFAULT 'member',
   active TINYINT(1) NOT NULL DEFAULT 1,
   must_change_password TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -59,6 +59,17 @@ CREATE TABLE IF NOT EXISTS task_logs (
   author VARCHAR(120) NOT NULL,
   logged_at VARCHAR(80) NOT NULL,
   CONSTRAINT fk_task_logs_task FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 7. Usabilidad (ingresos y vistas). La cuenta TIC la crea el servidor.
+CREATE TABLE IF NOT EXISTS activity_log (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_email VARCHAR(190) NOT NULL,
+  action VARCHAR(40) NOT NULL,
+  detail VARCHAR(255) NOT NULL DEFAULT '',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_activity_created (created_at),
+  INDEX idx_activity_email (user_email)
 ) ENGINE=InnoDB;
 
 SHOW DATABASES LIKE 'colbeef_planner';

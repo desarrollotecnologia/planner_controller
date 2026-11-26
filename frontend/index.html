@@ -208,6 +208,9 @@
                 <button id="tabUsers" data-view="users" class="tab-btn hidden whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 transition flex items-center gap-2">
                     <i class="fa-solid fa-users"></i><span>Usuarios</span>
                 </button>
+                <button id="tabUsage" data-view="usage" class="tab-btn hidden whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 transition flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line"></i><span>Usabilidad</span>
+                </button>
             </nav>
         </div>
     </header>
@@ -446,6 +449,19 @@
                 </form>
             </div>
             <div id="usersContainer" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
+        </section>
+
+        <section id="view-usage" class="view-section hidden space-y-4">
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                <h2 class="text-base font-bold text-slate-900">Usabilidad del planificador</h2>
+                <p class="text-xs text-slate-500 mt-1">Ingresos, vistas y movimientos de todo el planificador.</p>
+            </div>
+            <div id="usageSummary" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div id="usageViews" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
+                <div id="usageUsers" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
+            </div>
+            <div id="usageRecent" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
         </section>
     </main>
 
